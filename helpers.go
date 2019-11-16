@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -32,6 +34,38 @@ func isIssuerCertificate(certificate, issuerCertificate *x509.Certificate) (bool
 	// check whether the certificate was signed using the issuer certificate
 	err := certificate.CheckSignatureFrom(issuerCertificate)
 	return err == nil, err
+}
+
+func isPrivateKeyToPublicKey(privateKey crypto.PrivateKey, publicKey crypto.PublicKey) (bool, error) {
+
+	// marshal specified public key to compare it with the public key the private key brings along
+	buf1, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		return false, err
+	}
+
+	var buf2 []byte
+	switch sk := privateKey.(type) {
+	case *rsa.PrivateKey:
+		buf2, err = x509.MarshalPKIXPublicKey(sk.Public())
+		if err != nil {
+			return false, err
+		}
+	case *ecdsa.PrivateKey:
+		buf2, err = x509.MarshalPKIXPublicKey(sk.Public())
+		if err != nil {
+			return false, err
+		}
+	case *ed25519.PrivateKey:
+		buf2, err = x509.MarshalPKIXPublicKey(sk.Public())
+		if err != nil {
+			return false, err
+		}
+	default:
+		return false, fmt.Errorf("Private key type (%T) is not supported", privateKey)
+	}
+
+	return bytes.Equal(buf1, buf2), nil
 }
 
 func printCertificate(certificate *x509.Certificate, message string) {
