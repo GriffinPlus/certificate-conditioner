@@ -81,6 +81,7 @@ steps:
       export GOARCH=$(echo "$line" | cut -d'/' -f2)
       cp README.md "$(Build.ArtifactStagingDirectory)/$GOOS-$GOARCH"
       cp LICENSE "$(Build.ArtifactStagingDirectory)/$GOOS-$GOARCH"
+      cp THIRD_PARTY_NOTICES "$(Build.ArtifactStagingDirectory)/$GOOS-$GOARCH"
       pushd "$(Build.ArtifactStagingDirectory)/$GOOS-$GOARCH"
       zip -r "certificate-wizard-v$(GitVersion.SemVer)-$GOOS-$GOARCH.zip" .
       popd
