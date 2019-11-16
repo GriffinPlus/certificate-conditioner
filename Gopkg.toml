@@ -1,0 +1,23 @@
+[[constraint]]
+  name = "github.com/mozilla-services/pkcs7"
+  revision = "3cffc6fbfe837a6fe43e8e336153379a69ef02bd"
+
+[[constraint]]
+  name = "software.sslmate.com/src/go-pkcs12"
+  revision = "6e380ad96778cc63c6ea17649a9b74224bceafe9"
+
+[[constraint]]
+  name = "github.com/grantae/certinfo"
+  revision = "59d56a35515b3ab2326749924739cfe58facc991"
+
+[[constraint]]
+  name = "github.com/integrii/flaggy"
+  version = "=1.4.0"
+
+[[constraint]]
+  name = "github.com/sirupsen/logrus"
+  version = "=1.4.2"
+
+[prune]
+  go-tests = true
+  unused-packages = true
