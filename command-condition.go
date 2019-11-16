@@ -3,16 +3,12 @@ package main
 import (
 	"bytes"
 	"crypto"
-	"crypto/ecdsa"
-	"crypto/ed25519"
-	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
-	"reflect"
 	"strings"
 
 	"github.com/integrii/flaggy"
@@ -148,30 +144,14 @@ func (cmd *ConditionCommand) Execute() error {
 
 	// check whether there is a matching private key for it
 	var key crypto.PrivateKey = nil
-getMatchingKeyLoop:
 	for _, k := range keys {
-		if reflect.TypeOf(k) != reflect.TypeOf(certificate.PublicKey) {
-			continue
+		match, err := isPrivateKeyToPublicKey(k, certificate.PublicKey)
+		if err != nil {
+			return fmt.Errorf("Determing whether private key and public key belongs together failed: %s", err)
 		}
-		switch sk := k.(type) {
-		case rsa.PrivateKey:
-			if sk.PublicKey == certificate.PublicKey.(rsa.PublicKey) {
-				key = sk
-				break getMatchingKeyLoop
-			}
-		case ed25519.PrivateKey:
-			if bytes.Equal(sk.Public().([]byte), certificate.PublicKey.([]byte)) {
-				key = sk
-				break getMatchingKeyLoop
-			}
-		case ecdsa.PrivateKey:
-			if sk.PublicKey == certificate.PublicKey.(ecdsa.PublicKey) {
-				key = sk
-				break getMatchingKeyLoop
-			}
-		default:
-			log.Errorf("Detected private key of unknown type (%T).", k)
-			return fmt.Errorf("Detected private key of unknown type (%T)", k)
+		if match {
+			key = k
+			break
 		}
 	}
 
