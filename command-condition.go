@@ -143,12 +143,6 @@ func (cmd *ConditionCommand) Execute() error {
 		return fmt.Errorf("Multiple end-entity certificates were specified, cannot determine which to use")
 	}
 
-	// abort, if a private key file should be written, but no private key was specified
-	if len(cmd.outPrivateKeyPath) > 0 {
-		log.Errorf("Writing a private key file was specified, but no key was specified.")
-		return fmt.Errorf("Writing a private key file was specified, but no key was specified")
-	}
-
 	// found the end-entity certificate
 	certificate := endEntityCertificates[0]
 
@@ -321,6 +315,12 @@ outer:
 	}
 
 	if len(cmd.outPrivateKeyPath) > 0 {
+
+		// abort, if no key is available
+		if key == nil {
+			log.Errorf("Cannot write private key as no private key was specified.")
+			return fmt.Errorf("Cannot write private key as no private key was specified")
+		}
 
 		// prepare writing the private key using the specified format
 		buffer := bytes.NewBufferString("")
