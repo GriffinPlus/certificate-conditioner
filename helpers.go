@@ -93,7 +93,7 @@ func splitCertificatesByCategory(certificates []*x509.Certificate) ([]*x509.Cert
 	return endEntityCertificates, caCertificates
 }
 
-func writePkcs1PrivateKey(writer io.Writer, privateKey crypto.PrivateKey, password string) error {
+func writePkcs1PrivateKeyDer(writer io.Writer, privateKey crypto.PrivateKey) error {
 
 	// ensure that the specified key is an RSA private key (other algorithms are not supported by PKCS#1)
 	rsaPrivateKey, ok := privateKey.(*rsa.PrivateKey)
@@ -101,7 +101,21 @@ func writePkcs1PrivateKey(writer io.Writer, privateKey crypto.PrivateKey, passwo
 		return fmt.Errorf("The private key is not a RSA private key")
 	}
 
-	// write private key to file
+	// write private key
+	privBytes := x509.MarshalPKCS1PrivateKey(rsaPrivateKey)
+	_, err := writer.Write(privBytes)
+	return err
+}
+
+func writePkcs1PrivateKeyPem(writer io.Writer, privateKey crypto.PrivateKey, password string) error {
+
+	// ensure that the specified key is an RSA private key (other algorithms are not supported by PKCS#1)
+	rsaPrivateKey, ok := privateKey.(*rsa.PrivateKey)
+	if !ok {
+		return fmt.Errorf("The private key is not a RSA private key")
+	}
+
+	// write private key
 	// (encryption occurs at the PEM level)
 	privBytes := x509.MarshalPKCS1PrivateKey(rsaPrivateKey)
 	var pemBlock *pem.Block
@@ -123,7 +137,22 @@ func writePkcs1PrivateKey(writer io.Writer, privateKey crypto.PrivateKey, passwo
 	return nil
 }
 
-func writePkcs8PrivateKey(writer io.Writer, privateKey crypto.PrivateKey, password string) error {
+func writePkcs8PrivateKeyDer(writer io.Writer, privateKey crypto.PrivateKey, password string) error {
+
+	// convert private key to PKCS#8 (supports RSA and ECDSA only)
+	// (encryption occurs at the ASN.1 level)
+	privBytes, err := pkcs8.ConvertPrivateKeyToPKCS8(privateKey, []byte(password))
+	if err != nil {
+		log.Errorf("Marshalling private key failed: %s", err)
+		return err
+	}
+
+	// write private key
+	_, err = writer.Write(privBytes)
+	return err
+}
+
+func writePkcs8PrivateKeyPem(writer io.Writer, privateKey crypto.PrivateKey, password string) error {
 
 	// convert private key to PKCS#8 (supports RSA and ECDSA only)
 	// (encryption occurs at the ASN.1 level)
@@ -136,9 +165,9 @@ func writePkcs8PrivateKey(writer io.Writer, privateKey crypto.PrivateKey, passwo
 	// determine the type of the PEM block to write
 	var pemBlockType string
 	if len(password) > 0 {
-		pemBlockType = "PRIVATE KEY"
-	} else {
 		pemBlockType = "ENCRYPTED PRIVATE KEY"
+	} else {
+		pemBlockType = "PRIVATE KEY"
 	}
 
 	// write PEM block

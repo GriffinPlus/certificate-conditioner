@@ -247,6 +247,7 @@ outer:
 		defer file.Close()
 
 		// write appropriately encoded certificate
+		log.Infof("Writing certificate (%s) to file (%s)...", certificate.Subject.String(), cmd.outCertificatePath)
 		switch strings.ToLower(cmd.outCertificateEncoding) {
 		case "der":
 			if _, err := file.Write(certificate.Raw); err != nil {
@@ -254,7 +255,6 @@ outer:
 				return err
 			}
 		case "pem":
-			log.Infof("Writing certificate (%s) to file (%s)...", certificate.Subject.String(), cmd.outCertificatePath)
 			if err := pem.Encode(file, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw}); err != nil {
 				log.Errorf("Failed to write certificate to file (%s): %s", cmd.outCertificatePath, err)
 				return err
@@ -276,6 +276,7 @@ outer:
 
 		// write certificate chain
 		for _, certificate := range chain {
+			log.Infof("Writing certificate (%s) to file (%s)...", certificate.Subject.String(), cmd.outCertificateChainPath)
 			switch strings.ToLower(cmd.outCertificateChainEncoding) {
 			case "der":
 				if _, err := file.Write(certificate.Raw); err != nil {
@@ -283,7 +284,6 @@ outer:
 					return err
 				}
 			case "pem":
-				log.Infof("Writing certificate (%s) to file (%s)...", certificate.Subject.String(), cmd.outCertificateChainPath)
 				if err := pem.Encode(file, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw}); err != nil {
 					log.Errorf("Failed to write certificate chain to file (%s): %s", cmd.outCertificateChainPath, err)
 					return err
@@ -302,19 +302,33 @@ outer:
 			return fmt.Errorf("Cannot write private key as no private key was specified")
 		}
 
-		// prepare writing the private key using the specified format
+		// prepare writing the private key using the specified format and encoding
 		buffer := bytes.NewBufferString("")
-		log.Infof("Writing private key to file (%s)...", cmd.outPrivateKeyPath)
 		switch strings.ToLower(cmd.outPrivateKeyFormat) {
 		case "pkcs1":
-			err = writePkcs1PrivateKey(buffer, key, cmd.outPrivateKeyPassword)
+			switch strings.ToLower(cmd.outPrivateKeyEncoding) {
+			case "der":
+				err = writePkcs1PrivateKeyDer(buffer, key)
+			case "pem":
+				err = writePkcs1PrivateKeyPem(buffer, key, cmd.outPrivateKeyPassword)
+			default:
+				log.Panicf("Unhandled private key encoding (%s)", cmd.outPrivateKeyEncoding)
+			}
 		case "pkcs8":
-			err = writePkcs8PrivateKey(buffer, key, cmd.outPrivateKeyPassword)
+			switch strings.ToLower(cmd.outPrivateKeyEncoding) {
+			case "der":
+				err = writePkcs8PrivateKeyDer(buffer, key, cmd.outPrivateKeyPassword)
+			case "pem":
+				err = writePkcs8PrivateKeyPem(buffer, key, cmd.outPrivateKeyPassword)
+			default:
+				log.Panicf("Unhandled private key encoding (%s)", cmd.outPrivateKeyEncoding)
+			}
 		default:
 			log.Panicf("Unhandled private key format (%s)", cmd.outPrivateKeyFormat)
 		}
 
 		// open file for writing (only current user is allowed to access it)
+		log.Infof("Writing private key to file (%s)...", cmd.outPrivateKeyPath)
 		file, err := os.OpenFile(cmd.outPrivateKeyPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 		if err != nil {
 			log.Errorf("Failed to open file (%s) for writing: %s", cmd.outPrivateKeyPath, err)
@@ -322,21 +336,10 @@ outer:
 		}
 		defer file.Close()
 
-		// encode the formatted kry as specified and write it to the specified file
-		switch strings.ToLower(cmd.outPrivateKeyEncoding) {
-		case "der":
-			if _, err := file.Write(buffer.Bytes()); err != nil {
-				log.Errorf("Failed to write private key to file (%s): %s", cmd.outPrivateKeyPath, err)
-				return err
-			}
-		case "pem":
-			log.Infof("Writing private key to file (%s)...", cmd.outPrivateKeyPath)
-			if err := pem.Encode(file, &pem.Block{Type: "CERTIFICATE", Bytes: buffer.Bytes()}); err != nil {
-				log.Errorf("Failed to write private key to file (%s): %s", cmd.outPrivateKeyPath, err)
-				return err
-			}
-		default:
-			log.Panicf("Unhandled private key encoding (%s)", cmd.outPrivateKeyEncoding)
+		// write the private key file
+		if _, err := file.Write(buffer.Bytes()); err != nil {
+			log.Errorf("Failed to write private key to file (%s): %s", cmd.outPrivateKeyPath, err)
+			return err
 		}
 	}
 
