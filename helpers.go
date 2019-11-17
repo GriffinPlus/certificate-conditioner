@@ -156,23 +156,33 @@ func writePkcs8PrivateKeyPem(writer io.Writer, privateKey crypto.PrivateKey, pas
 
 	// convert private key to PKCS#8 (supports RSA and ECDSA only)
 	// (encryption occurs at the ASN.1 level)
-	privBytes, err := pkcs8.ConvertPrivateKeyToPKCS8(privateKey, []byte(password))
-	if err != nil {
-		log.Errorf("Marshalling private key failed: %s", err)
-		return err
-	}
-
-	// determine the type of the PEM block to write
-	var pemBlockType string
 	if len(password) > 0 {
-		pemBlockType = "ENCRYPTED PRIVATE KEY"
-	} else {
-		pemBlockType = "PRIVATE KEY"
-	}
 
-	// write PEM block
-	if err := pem.Encode(writer, &pem.Block{Type: pemBlockType, Bytes: privBytes}); err != nil {
-		return err
+		// marshal private key
+		privBytes, err := pkcs8.ConvertPrivateKeyToPKCS8(privateKey, []byte(password))
+		if err != nil {
+			log.Errorf("Marshalling private key failed: %s", err)
+			return err
+		}
+
+		// write PEM block
+		if err := pem.Encode(writer, &pem.Block{Type: "ENCRYPTED PRIVATE KEY", Bytes: privBytes}); err != nil {
+			return err
+		}
+
+	} else {
+
+		// marshal private key
+		privBytes, err := pkcs8.ConvertPrivateKeyToPKCS8(privateKey)
+		if err != nil {
+			log.Errorf("Marshalling private key failed: %s", err)
+			return err
+		}
+
+		// write PEM block
+		if err := pem.Encode(writer, &pem.Block{Type: "PRIVATE KEY", Bytes: privBytes}); err != nil {
+			return err
+		}
 	}
 
 	return nil
