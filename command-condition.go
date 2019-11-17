@@ -182,7 +182,7 @@ outer:
 			if valid {
 				log.Infof("Issuer certificate (%s) was specified, taking it...", currentCertificate.Issuer.String())
 				chain = append(chain, cacert)
-				certificate = cacert
+				currentCertificate = cacert
 				continue outer
 			}
 		}
